@@ -1,5 +1,5 @@
 class PostModel{
-  int? id;
+  String? id;
   late String title;
   late String desc;
   String? createdTime;

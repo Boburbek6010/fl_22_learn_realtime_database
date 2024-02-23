@@ -18,15 +18,41 @@ class _HomePageState extends State<HomePage> {
   TextEditingController titleController = TextEditingController();
   TextEditingController descController = TextEditingController();
 
+  List<PostModel> list = [];
+  bool isLoading = false;
 
   Future<void> create(String path)async{
     PostModel postModel = PostModel(title: titleController.text.trim().toString(), desc: descController.text.trim().toString(), createdTime: DateTime.now().toIso8601String());
-    await RTDBService.storeData(data: postModel.toJson(), path: path);
+    await RTDBService.storeData(postModel: postModel, path: path);
     titleController.clear();
     descController.clear();
     log("Finished");
+    await getPosts();
   }
 
+  Future<void> getPosts()async{
+    list = await RTDBService.getPosts(RTDBService.path);
+    setState(() {});
+  }
+
+  Future<void>updatePost(PostModel postModel)async{
+    await RTDBService.updatePost(postModel, RTDBService.path);
+    await getPosts();
+  }
+
+  Future<void>deletePost(String id)async{
+    await RTDBService.deletePost(RTDBService.path, id);
+    await getPosts();
+  }
+
+  @override
+  void initState() {
+    getPosts().then((value) {
+      isLoading = true;
+      setState(() {});
+    });
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -66,13 +92,33 @@ class _HomePageState extends State<HomePage> {
           Expanded(
             flex: 6,
             child: ListView.builder(
-              itemCount: 10,
+              itemCount: list.length,
               itemBuilder: (_, index){
-                return const Card(
+                return Card(
                   child: ListTile(
-                    title: Text("title"),
-                    subtitle: Text("subtitle"),
-                    trailing: Text("trailing"),
+                    title: Text(list[index].title),
+                    subtitle: Text(list[index].desc),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(list[index].createdTime.toString()),
+                        IconButton(
+                          icon: const Icon(Icons.edit),
+                          onPressed: ()async{
+                            PostModel postModel = PostModel(title: "title", desc: "desc");
+                            list[index].title = postModel.title;
+                            list[index].desc = postModel.desc;
+                            await updatePost(list[index]);
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: ()async{
+                            await deletePost(list[index].id ?? "");
+                          },
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },
