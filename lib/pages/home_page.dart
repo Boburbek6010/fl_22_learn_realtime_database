@@ -1,8 +1,11 @@
 import 'dart:developer';
+import 'dart:io';
 
 import 'package:fl_22_learn_realtime_database/models/post_model.dart';
 import 'package:fl_22_learn_realtime_database/services/rtdb_services.dart';
+import 'package:fl_22_learn_realtime_database/services/storage_service.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 class HomePage extends StatefulWidget {
   static const String id = "/home_page";
@@ -19,7 +22,9 @@ class _HomePageState extends State<HomePage> {
   TextEditingController descController = TextEditingController();
 
   List<PostModel> list = [];
+  List<String>itemList = [];
   bool isLoading = false;
+  bool isStorageCame = false;
 
   Future<void> create(String path)async{
     PostModel postModel = PostModel(title: titleController.text.trim().toString(), desc: descController.text.trim().toString(), createdTime: DateTime.now().toIso8601String());
@@ -45,8 +50,35 @@ class _HomePageState extends State<HomePage> {
     await getPosts();
   }
 
+
+
+  /// firebase storage =================================================================
+
+  Future<File> takeFile()async{
+    final ImagePicker picker = ImagePicker();
+    final XFile? xFile = await picker.pickImage(source: ImageSource.gallery);
+    File file = File(xFile?.path ?? "");
+    return file;
+
+  }
+
+
+
+  Future<void>uploadFile()async{
+    String link = await StorageService.upload(path: StorageService.parentPath, file: await takeFile());
+    log(link);
+  }
+
+  Future<void>getFile()async{
+    isStorageCame = false;
+    itemList = await StorageService.getFile(StorageService.parentPath);
+    isStorageCame = true;
+    setState(() {});
+  }
+
   @override
   void initState() {
+    getFile();
     getPosts().then((value) {
       isLoading = true;
       setState(() {});
@@ -90,7 +122,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           Expanded(
-            flex: 6,
+            flex: 3,
             child: ListView.builder(
               itemCount: list.length,
               itemBuilder: (_, index){
@@ -124,7 +156,45 @@ class _HomePageState extends State<HomePage> {
               },
             ),
           ),
+          Expanded(
+            flex: 3,
+            child: isStorageCame ?ListView.builder(
+              itemCount: itemList.length,
+              itemBuilder: (_, index){
+                return Card(
+                  child: ListTile(
+                    title: Image.network(itemList[index]),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.download),
+                          onPressed: ()async{
+
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: ()async{
+                            // await deletePost(list[index].id ?? "");
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ):const Center(
+              child: CircularProgressIndicator(),
+            ),
+          ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: ()async{
+          await uploadFile();
+        },
+        child: const Icon(Icons.add),
       ),
     );
   }
